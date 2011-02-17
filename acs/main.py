@@ -3,6 +3,36 @@ import zipfile
 
 from common.utils import wget
 
+DIRECTORYSCHEMA="""
+
+maindir/
+    headers/   #the contents of this directory is created by the download_headers calls
+         acs2007_1yr.xls #metadata for that dataset
+         acs2007_3yr.xls 
+         &c
+         
+    __PARSE__   #the contents of this directory is created by the download_data calls
+        acs2007_1yr/   #the contents of this is created by downloading a manifest of all teh states, then downloading the contents for each state, and unzipping the context
+            AL/    
+                e_stuff.txt  #bunch of these created by unzipping
+                m_stuff.txt
+                
+                g_AL.txt
+            
+            AK/
+                e_stuff.txt...
+                m_stuff.txt
+                
+                g_AK.txt
+                
+        
+        acs2007_3yr/
+             &c
+             
+        &c
+
+"""
+
 BASEURL = "http://www2.census.gov/"
 
 #in this dictionary, the keys are dataset names and the values are:
