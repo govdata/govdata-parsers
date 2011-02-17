@@ -1,8 +1,24 @@
 import urllib
 import zipfile
 
+BASEURL = "http://www2.census.gov/"
+
+DATASETS = [('acs2007_1yr','summaryfile/'),
+            ('acs2007_3yr','summaryfile/'),
+            ('acs2007_2009_3yr','summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/'),
+            ('acs2008_1yr','summaryfile/'),
+            ('acs2008_3yr','summaryfile/'),
+            ('acs2009_1yr','summaryfile/Seq_By_ST/'),
+            ('acs2009_3yr','summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/'),
+            ('acs2009_5yr','summaryfile/2005-2009_ACSSF_By_State_By_Sequence_Table_Subset/')]
+            
+#JAMESON TO DO: write the downloader, either one function for each or a generalized function ... 
+#whichever is cleaner 
+
+
+
 def downloader():
-    BASEURL = "http://www2.census.gov/"
+    
     DATASET = "acs2009_5yr"
     DATADIR = "/summaryfile/2005-2009_ACSSF_All_In_2_Giant_Files(Experienced-Users-Only)/"
     FILE_ALL = "All_Geographies_Not_Tracts_Block_Groups.zip"
