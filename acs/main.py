@@ -1,31 +1,53 @@
 import urllib
 import zipfile
 
+from common.utils import wget
+
 BASEURL = "http://www2.census.gov/"
 
-DATASETS = [('acs2007_1yr','summaryfile/'),
-            ('acs2007_3yr','summaryfile/'),
-            ('acs2007_2009_3yr','summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/'),
-            ('acs2008_1yr','summaryfile/'),
-            ('acs2008_3yr','summaryfile/'),
-            ('acs2009_1yr','summaryfile/Seq_By_ST/'),
-            ('acs2009_3yr','summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/'),
-            ('acs2009_5yr','summaryfile/2005-2009_ACSSF_By_State_By_Sequence_Table_Subset/')]
+#in this dictionary, the keys are dataset names and the values are:
+#(location of state-by-directories,location of metadata file)
+DATASETS = ['acs2007_1yr': ('summaryfile/','merge_5_6_final.xls'),
+            'acs2007_3yr' : ('summaryfile/','merge_5_6_final.xls'),
+            'acs2007_2009_3yr' : ('summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls'),
+            'acs2008_1yr' : ('summaryfile/','merge_5_6.xls'),
+            'acs2008_3yr' : ('summaryfile/','merge_5_6.xls'),
+            'acs2009_1yr' : ('summaryfile/Seq_By_ST/','merge_5_6.xls'),
+            'acs2009_3yr' : ('summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls'),
+            'acs2009_5yr' ; ('summaryfile/2005-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls')]
             
 #JAMESON TO DO: write the downloader, either one function for each or a generalized function ... 
 #whichever is cleaner 
-
-
-
-def downloader():
+def download_data(maindir,dataset_name):
+        
+    download_dir = os.path.join(maindir,dataset_name)
     
-    DATASET = "acs2009_5yr"
-    DATADIR = "/summaryfile/2005-2009_ACSSF_All_In_2_Giant_Files(Experienced-Users-Only)/"
-    FILE_ALL = "All_Geographies_Not_Tracts_Block_Groups.zip"
-    FILE_CT_BG = "Tracts_Block_Groups_Only.zip"
+    parse_dir = os.path.join(maindir, '__PARSE__',dataset_name)
+    makedirs(parse_dir)
+    
+    for state in states:
+        state_dir = os.path.join(parse_dir,state)
+        makedir(state_dir)
+        
+        #wget state contents html
+        #parse it
+        #download all the .zip files 
+        #unzip them 
+        #delete the zips
+    
 
-    urllib.urlretrieve(BASURL+DATASET+DATADIR+FILE_ALL, FILE_ALL)                                                             
-    urllib.urlretrieve(BASEURL+DATASET+DATADIR+FILE_CT_BG, FILE_CT_BG)
+
+#kate TO DO:  write the header downloader
+def download_headers(maindir,dataset_name):
+
+    download_dir = os.path.join(maindir,'headers')
+    
+    download_path = os.path.join(download_dir,dataset_name + '.xls')
+    
+    header_file = os.path.join(BASEURL, dataset_name, 'summaryfile',DATASETS[dataset_name][1])
+    
+    wget(headerfile,download_path)
+
 
 def unzip_data(fid):
 	zfile = zipfile.ZipFile( fid, 'r')
@@ -37,20 +59,12 @@ def unzip_data(fid):
 		wfid.write(data)
 		wfid.close
 
-def create_metadata():
-	pass
 
-class acs_iterator(govdata.core.DataIterator):
-	pass
-	
-	def __init__(self):
-		pass
-		
-	def refresh(self):
-		pass
-	
-	def CreateHeaderDict():
-    PATH = "/Users/jltoole/Documents/Projects/GovData/"
+
+def create_headers(path):
+    """
+    creates the headers fro the path which is the header file 
+    """
 
     #fid = open(PATH + 'data/headers.txt','rU')
     #wfid = open(PATH + 'data/hierachy.txt', 'w')
@@ -120,8 +134,50 @@ class acs_iterator(govdata.core.DataIterator):
     #wfid.close()
     
     return headers
+
+
+class acs_iterator(govdata.core.DataIterator):
+	pass
+	
+	def __init__(self,maindir):
+	
+	    header_dir = os.path.join(maindir, 'headers')
+	    
+	    headers = {}
+	    for l in os.listdir(header_dir):
+	        headers[l] = create_headers(l)
+		
+		self.headers = headers
+		
+		#self.metadata = ....
+		
+		
+		
+	def refresh(self,filepath):
+		
+		datasetname = get_dataset_name_from_filepath(filepath)
+		
+		self.current_headers = self.headers[datasetname]
+		
+		if filepath.startswith('e'):
+		    self.e_fh = open(filepath)
+		    
+		    #find corresponding m and g
+		    
+		    self.m_fh = open(mfilepath)
+		
+		    #only look for / load the g file when the statename changes 
+		    if changed:
+		        #find g file
+		        self.g_fh = open(gfilepath)
+		        
+    def next(self):
+        
+		    
+	
+
     
-	def GeoParser():
+	def GeoParser(self):
 		geo_dict = {}
 		cc = {
 		"LOGRECNO": [ 14, 7, ""],
@@ -230,3 +286,6 @@ class acs_iterator(govdata.core.DataIterator):
 			print records
 			
 		fid.close()
+		
+		
+		
