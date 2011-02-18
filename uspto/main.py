@@ -1,11 +1,11 @@
+import sqlite3
+
 def download_from_dvn():
     pass
 
 def unzip_dvn():
     pass
-
-def reorder():
-    pass
+    
 
 def create_metadata():
     """
@@ -19,11 +19,13 @@ def create_metadata():
     """
     pass
 
-class uspto_iterator(govdata.core.DataIterator):
-    pass
+class uspto_iterator(object):
 
     def __init__(self):
-        pass
+        self.cursors = {}
+
+    def __iter__(self):
+        return self
 
     def refresh(self):
         """
@@ -31,9 +33,13 @@ class uspto_iterator(govdata.core.DataIterator):
           and load into the metadata attribute the metadata
         """
 
-        #open cursors
-        #self.cursors =  dictionary of cursors
-
+        dbnames = ['assignee','citation', 'class', 'inventor', 'lawyer', 'patdesc', 'patent', 'sciref', 'usreldoc']
+        for dbname in dbnames:
+            conn = sqlite3.connect(dbname + '.sqlite3')
+            c = conn.cursor()
+            c.execute("SELECT * from %s order by patent" % dbname)
+            self.cursors[dbname] = c
+            
         #self.metadata = create_metadata()
         
         pass
@@ -49,6 +55,30 @@ class uspto_iterator(govdata.core.DataIterator):
         #to the patent DB
         #transform the data into a record that can be inserted in to MongDB
         #return that value
+
+        #coprime with patent:  citation,
+
+        C = self.cursors
+
+        prime = ['patent','patdesc']
+        rec = {}
+        for p in prime:
+            rec[p] = C[p].next()
+            
+        patent = rec['patent'][0]
+        nonprime = ['class']
+        for db in nonprime:
+            val = []
+            while True:
+                nextval = C[db].next()
+                if nextval[0] != patent:
+                    break
+                else:
+                    val.append(nextval)
+            rec[db] = val
+    
+        return rec
+        
 
 PATENT_SCHEMA = """
 CREATE TABLE patent (
@@ -110,4 +140,4 @@ CREATE TABLE usreldoc (
                     RelDate INTEGER,        Status VARCHAR(10));
 """
         
-        pass
+    
