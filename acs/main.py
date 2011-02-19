@@ -1,5 +1,6 @@
 import urllib
 import zipfile
+import BeautifulSoup as BS
 
 from common.utils import wget
 
@@ -37,34 +38,60 @@ BASEURL = "http://www2.census.gov/"
 
 #in this dictionary, the keys are dataset names and the values are:
 #(location of state-by-directories,location of metadata file)
-DATASETS = ['acs2007_1yr': ('summaryfile/','merge_5_6_final.xls'),
-            'acs2007_3yr' : ('summaryfile/','merge_5_6_final.xls'),
-            'acs2007_2009_3yr' : ('summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls'),
-            'acs2008_1yr' : ('summaryfile/','merge_5_6.xls'),
-            'acs2008_3yr' : ('summaryfile/','merge_5_6.xls'),
-            'acs2009_1yr' : ('summaryfile/Seq_By_ST/','merge_5_6.xls'),
-            'acs2009_3yr' : ('summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls'),
-            'acs2009_5yr' ; ('summaryfile/2005-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls')]
+DATASETS = {'acs2007_1yr': ('summaryfile/','merge_5_6_final.xls'),
+			'acs2007_3yr' : ('summaryfile/','merge_5_6_final.xls'),
+			'acs2007_2009_3yr' : ('summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls'),
+			'acs2008_1yr' : ('summaryfile/','merge_5_6.xls'),
+			'acs2008_3yr' : ('summaryfile/','merge_5_6.xls'),
+			'acs2009_1yr' : ('summaryfile/Seq_By_ST/','merge_5_6.xls'),
+			'acs2009_3yr' : ('summaryfile/2007-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls'),
+			'acs2009_5yr' : ('summaryfile/2005-2009_ACSSF_By_State_By_Sequence_Table_Subset/','Sequence_Number_and_Table_Number_Lookup.xls')}
             
-#JAMESON TO DO: write the downloader, either one function for each or a generalized function ... 
-#whichever is cleaner 
+
+states_full = ['Alabama/','Alaska/','Arizona/','Arkansas/','California/','Colorado/',
+'Connecticut/','Delaware/','DistrictofColumbia/','Florida/','Georgia/',
+'Hawaii/','Idaho/','Illinois/','Indiana/','Iowa/','Kansas/',
+'Kentucky/','Louisiana/','Maine/','Maryland/','Massachusetts/','Michigan/',
+'Minnesota/','Mississippi/','Missouri/','Montana/','Nebraska/','Nevada/',
+'NewHampshire/','NewJersey/','NewMexico/','NewYork/','NorthCarolina/','NorthDakota/',
+'Ohio/','Oklahoma/','Oregon/','Pennsylvania/','PuertoRico/','RhodeIsland/',
+'SouthCarolina/','SouthDakota/','Tennessee/','Texas/','UnitedStates/','Utah/',
+'Vermont/','Virginia/','Washington/','WestVirginia/','Wisconsin/', 'Wyoming/']
+
+states_abvs = ['AK/','AL/','AR/','AZ/','CA/','CO/','CT/','DC/',
+'DE/','FL/','GA/','HI/','IA/','ID/','IL/','IN/','KS/','KY/','LA/','MA/','MD/','ME/','MI/',
+'MN/','MO/','MS/','MT/','NC/','ND/','NE/','NH/','NJ/','NM/','NV/','NY/','OH/','OK/','OR/',
+'PA/','PR/','RI/','SC/','SD/','TN/','TX/','US/','UT/','VA/','VT/','WA/','WI/','WV/','WY/']
+
 def download_data(maindir,dataset_name):
-        
-    download_dir = os.path.join(maindir,dataset_name)
-    
-    parse_dir = os.path.join(maindir, '__PARSE__',dataset_name)
-    makedirs(parse_dir)
-    
-    for state in states:
-        state_dir = os.path.join(parse_dir,state)
-        makedir(state_dir)
-        
-        #wget state contents html
-        #parse it
-        #download all the .zip files 
-        #unzip them 
-        #delete the zips
-    
+
+	download_dir = os.path.join(maindir,dataset_name)
+	
+	parse_dir = os.path.join(maindir, '__PARSE__',dataset_name)
+	os.makedirs(parse_dir)
+	
+	if dataset_name == 'acs2009_1yr': states = states_abvs
+	else: states = states_full
+	
+	for state in states:
+		state_dir = os.path.join(parse_dir,state)
+		os.makedirs(state_dir)
+		
+		state_url = os.path.join(BASEURL, dataset_name, DATASETS[dataset_name][0], state)
+		h = urllib.urlopen(state_url)
+		s = BS.BeautifulSoup(h.read())
+		a = s.findAll('a')
+		zipfiles = [str(i)[9:27] for i in a if '000.zip' in str(i)]
+		txtfiles = [str(i)[9:21] for i in a if '.txt' in str(i)]
+		for file in zipfiles:
+			file_url = os.path.join(state_url,file)
+			file_path = os.path.join(state_dir, file)
+			urllib.urlretrieve(file_url, file_path)
+			unzip_data(state_dir,file_path)
+		for file in txtfiles:
+			file_url = os.path.join(state_url,file)
+			file_path = os.path.join(state_dir, file)
+			urllib.urlretrieve(file_url, file_path)
 
 
 #kate TO DO:  write the header downloader
@@ -79,15 +106,16 @@ def download_headers(maindir,dataset_name):
     wget(headerfile,download_path)
 
 
-def unzip_data(fid):
+def unzip_data(out_dir, fid):
 	zfile = zipfile.ZipFile( fid, 'r')
 	
 	for info in zfile.infolist():
 		fname = info.filename
 		data = zfile.read(fname)
-		wfid = open(fname,'w')
+		wfid = open(out_dir+fname,'w')
 		wfid.write(data)
 		wfid.close
+	os.remove(fid)
 
 
 
