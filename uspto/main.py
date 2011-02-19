@@ -35,11 +35,15 @@ class uspto_iterator(object):
         """
 
         dbnames = ['assignee','citation', 'class', 'inventor', 'lawyer', 'patdesc', 'patent', 'sciref', 'usreldoc']
+        self.dbnames = dbnames
+        self.cur_vals = {}
         for dbname in dbnames:
             conn = sqlite3.connect(dbname + '.sqlite3')
             c = conn.cursor()
             c.execute("SELECT * from %s order by patent" % dbname)
             self.cursors[dbname] = c
+            self.current_values[dbname] = c.next()
+    
             
         #self.metadata = create_metadata()
         
@@ -59,27 +63,25 @@ class uspto_iterator(object):
 
         #coprime with patent:  citation,
 
-        C = self.cursors
-
-        prime = ['patent','patdesc']
+        patent = self.cur_vals['patent'][0]
+        
         rec = {}
-        for p in prime:
-            rec[p] = C[p].next()
-            
-        patent = rec['patent'][0]
-        nonprime = ['class']
-        for db in nonprime:
-            val = []
+        for dbname in self.dbnames:
+            vals = []
             while True:
-                nextval = C[db].next()
-                if nextval[0] != patent:
+                val = self.current_values[dbname]
+                if val[0] != patent:
                     break
                 else:
-                    val.append(nextval)
-            rec[db] = val
-    
-        return rec
+                    vals.append(val)
+                    self.current_values[dbname] = self.cursors[dbname].next()
+            if len(vals) == 1:
+                vals = vals[0]
+            
+            rec[dbname] = vals
         
+        return rec
+   
 
 PATENT_SCHEMA = """
 CREATE TABLE patent (
