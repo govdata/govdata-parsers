@@ -34,16 +34,18 @@ class uspto_iterator(object):
           and load into the metadata attribute the metadata
         """
 
-        dbnames = ['assignee','citation', 'class', 'inventor', 'lawyer', 'patdesc', 'patent', 'sciref', 'usreldoc']
+        dbnames = ['patent', 'patdesc', 'inventor', 'assignee','class', 'lawyer', 'citation', 'sciref', 'usreldoc']
         self.dbnames = dbnames
-        self.cur_vals = {}
+        self.current_values = {}
         for dbname in dbnames:
             conn = sqlite3.connect(dbname + '.sqlite3')
+            conn.row_factory = sqlite3.Row #plug in sqlite3.Row - mimic tuples but allows for mapping access
             c = conn.cursor()
             c.execute("SELECT * from %s order by patent" % dbname)
             self.cursors[dbname] = c
             self.current_values[dbname] = c.next()
-    
+            print self.current_values[dbname].keys() #returns a tuple of column names
+         
             
         #self.metadata = create_metadata()
         
@@ -62,8 +64,14 @@ class uspto_iterator(object):
         #return that value
 
         #coprime with patent:  citation,
+        # TODO
+        # revise key values - remove extra patent, promote items from patent db to top level
+        # standardize column names
+        # format geographic data fields
+        # decode classification
+        # write metadata
 
-        patent = self.cur_vals['patent'][0]
+        patent = self.current_values['patent'][0]
         
         rec = {}
         for dbname in self.dbnames:
@@ -73,12 +81,17 @@ class uspto_iterator(object):
                 if val[0] != patent:
                     break
                 else:
-                    vals.append(val)
+                    processed_val = dict([(k,val[k]) for k in val.keys()])
+                    vals.append(processed_val)
                     self.current_values[dbname] = self.cursors[dbname].next()
+                    
             if len(vals) == 1:
                 vals = vals[0]
-            
-            rec[dbname] = vals
+
+            if vals:     
+                rec[dbname] = vals
+
+                
         
         return rec
    
