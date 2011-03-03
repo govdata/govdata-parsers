@@ -18,7 +18,10 @@ def create_metadata():
       {"title":"USPTO Data", "keywords":["patent",...], } &c
       
     """
-    pass
+    metadata = {}
+    metadata['dateFormat'] = 'YYYYmmdd'
+
+    
 
 class uspto_iterator(object):
 
@@ -65,10 +68,14 @@ class uspto_iterator(object):
 
         #coprime with patent:  citation,
         # TODO
-        # revise key values - remove extra patent, promote items from patent db to top level
-        # standardize column names
         # format geographic data fields
-        # decode classification
+            ## assignee: City, State, Country
+            ## inventor: Street, City, State, Zipcode, Country, Nationality
+            ## lawyer: LawCountry
+            ## usreldoc: Country
+        # decode classification, kind, apptype, asgtype, usreldoc kind
+        # standardize code names? ie asgtype
+        # understand usreldoc, assignee residence
         # write metadata
 
         patent = self.current_values['patent'][0]
@@ -81,17 +88,65 @@ class uspto_iterator(object):
                 if val[0] != patent:
                     break
                 else:
-                    processed_val = dict([(k,val[k]) for k in val.keys()])
+                    processed_val = dict([(k,val[k]) for k in val.keys() if val[k] != ''])
+
+                    if dbname != 'patent':
+                        processed_val.pop('Patent')
                     vals.append(processed_val)
                     self.current_values[dbname] = self.cursors[dbname].next()
-                    
-            if len(vals) == 1:
-                vals = vals[0]
-
+                
+            
             if vals:     
                 rec[dbname] = vals
 
-                
+        for k in ['Cit_Date', 'Cit_Name', 'Cit_Kind', 'Cit_Country', 'CitSeq']:
+            # make sure that data are ordered by CitSeq
+            for r in rec['citation']:
+                r.pop(k)
+        # make sure that data are order by their respective Seq numbers
+        for r in rec.get('inventor',[]):
+            r.pop('InvSeq')
+        for r in rec.get('lawyer',[]):
+            r.pop('LawSeq')
+        for r in rec.get('assignee',[]):
+            r.pop('AsgSeq')
+        for r in rec.get('usreldoc', []):
+            r.pop('OrderSeq')
+
+        for r in rec.get('assignee',[]):
+            location = {}
+            if r.get('State'):
+                location['s'] = r['State']
+            if r.get('City'):
+                location['W'] = r['City']
+            if r.get('County'):
+                location['C'] = r['Country']
+
+            r['location'] = location
+
+            
+
+        for k in rec:
+            if len(rec[k]) == 1:
+                rec[k] = rec[k][0]
+
+        for k in rec['patent']:
+            rec[k] = rec['patent'][k]
+        rec.pop('patent')
+        rec.pop('AppYear')
+        rec.pop('GYear')
+        rec['AppDate'] = rec['AppDate'].replace('-','')
+        rec['GDate'] = rec['GDate'].replace('-','')
+
+        toReplace = [('ApplicationDate', 'AppDate'),
+                     ('GrantDate', 'GDate'),
+                     ('PatentType', 'PatType'),
+                     ('ApplicationNumber', 'AppNum'),
+                     ('ApplicationType', 'AppType'),
+                     ('PatentDescription', 'patdesc')]
+        for a,b in toReplace:
+            rec[a] = rec.pop(b)
+        
         
         return rec
    
