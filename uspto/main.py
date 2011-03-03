@@ -18,7 +18,10 @@ def create_metadata():
       {"title":"USPTO Data", "keywords":["patent",...], } &c
       
     """
-    pass
+    metadata = {}
+    metadata['dateFormat'] = 'YYYYmmdd'
+
+    
 
 class uspto_iterator(object):
 
@@ -34,12 +37,18 @@ class uspto_iterator(object):
           and load into the metadata attribute the metadata
         """
 
-        dbnames = ['assignee','citation', 'class', 'inventor', 'lawyer', 'patdesc', 'patent', 'sciref', 'usreldoc']
+        dbnames = ['patent', 'patdesc', 'inventor', 'assignee','class', 'lawyer', 'citation', 'sciref', 'usreldoc']
+        self.dbnames = dbnames
+        self.current_values = {}
         for dbname in dbnames:
             conn = sqlite3.connect(dbname + '.sqlite3')
+            conn.row_factory = sqlite3.Row #plug in sqlite3.Row - mimic tuples but allows for mapping access
             c = conn.cursor()
             c.execute("SELECT * from %s order by patent" % dbname)
             self.cursors[dbname] = c
+            self.current_values[dbname] = c.next()
+            print self.current_values[dbname].keys() #returns a tuple of column names
+         
             
         #self.metadata = create_metadata()
         
@@ -58,28 +67,89 @@ class uspto_iterator(object):
         #return that value
 
         #coprime with patent:  citation,
+        # TODO
+        # format geographic data fields
+            ## assignee: City, State, Country
+            ## inventor: Street, City, State, Zipcode, Country, Nationality
+            ## lawyer: LawCountry
+            ## usreldoc: Country
+        # decode classification, kind, apptype, asgtype, usreldoc kind
+        # standardize code names? ie asgtype
+        # understand usreldoc, assignee residence
+        # write metadata
 
-        C = self.cursors
-
-        prime = ['patent','patdesc']
+        patent = self.current_values['patent'][0]
+        
         rec = {}
-        for p in prime:
-            rec[p] = C[p].next()
-            
-        patent = rec['patent'][0]
-        nonprime = ['class']
-        for db in nonprime:
-            val = []
+        for dbname in self.dbnames:
+            vals = []
             while True:
-                nextval = C[db].next()
-                if nextval[0] != patent:
+                val = self.current_values[dbname]
+                if val[0] != patent:
                     break
                 else:
-                    val.append(nextval)
-            rec[db] = val
-    
-        return rec
+                    processed_val = dict([(k,val[k]) for k in val.keys() if val[k] != ''])
+
+                    if dbname != 'patent':
+                        processed_val.pop('Patent')
+                    vals.append(processed_val)
+                    self.current_values[dbname] = self.cursors[dbname].next()
+                
+            
+            if vals:     
+                rec[dbname] = vals
+
+        for k in ['Cit_Date', 'Cit_Name', 'Cit_Kind', 'Cit_Country', 'CitSeq']:
+            # make sure that data are ordered by CitSeq
+            for r in rec['citation']:
+                r.pop(k)
+        # make sure that data are order by their respective Seq numbers
+        for r in rec.get('inventor',[]):
+            r.pop('InvSeq')
+        for r in rec.get('lawyer',[]):
+            r.pop('LawSeq')
+        for r in rec.get('assignee',[]):
+            r.pop('AsgSeq')
+        for r in rec.get('usreldoc', []):
+            r.pop('OrderSeq')
+
+        for r in rec.get('assignee',[]):
+            location = {}
+            if r.get('State'):
+                location['s'] = r['State']
+            if r.get('City'):
+                location['W'] = r['City']
+            if r.get('County'):
+                location['C'] = r['Country']
+
+            r['location'] = location
+
+            
+
+        for k in rec:
+            if len(rec[k]) == 1:
+                rec[k] = rec[k][0]
+
+        for k in rec['patent']:
+            rec[k] = rec['patent'][k]
+        rec.pop('patent')
+        rec.pop('AppYear')
+        rec.pop('GYear')
+        rec['AppDate'] = rec['AppDate'].replace('-','')
+        rec['GDate'] = rec['GDate'].replace('-','')
+
+        toReplace = [('ApplicationDate', 'AppDate'),
+                     ('GrantDate', 'GDate'),
+                     ('PatentType', 'PatType'),
+                     ('ApplicationNumber', 'AppNum'),
+                     ('ApplicationType', 'AppType'),
+                     ('PatentDescription', 'patdesc')]
+        for a,b in toReplace:
+            rec[a] = rec.pop(b)
         
+        
+        return rec
+   
 
 PATENT_SCHEMA = """
 CREATE TABLE patent (
