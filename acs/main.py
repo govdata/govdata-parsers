@@ -34,6 +34,12 @@ maindir/
 
 """
 
+RECORDSCHEMA="""
+
+
+
+"""
+
 BASEURL = "http://www2.census.gov/"
 
 #in this dictionary, the keys are dataset names and the values are:
@@ -191,7 +197,7 @@ def create_headers(path):
     #fid.close()
     #wfid.close()
     
-    return headers
+    self.headers = headers
 
 
 class acs_iterator(govdata.core.DataIterator):
@@ -199,43 +205,72 @@ class acs_iterator(govdata.core.DataIterator):
 	
 	def __init__(self,maindir):
 	
-	    header_dir = os.path.join(maindir, 'headers')
-	    
-	    headers = {}
-	    for l in os.listdir(header_dir):
-	        headers[l] = create_headers(l)
-		
-		self.headers = headers
-		
+		self.header_dir = os.path.join(maindir, 'headers')
+		self.geo_lookup = None
+		self.headers = None
+		self.datasetname = None
+		self.state = None
 		#self.metadata = ....
 		
 		
 		
 	def refresh(self,filepath):
+		newdataset = get_dataset_from_path(filepath)
+		dataset_changed = False
+		if self.datasetname != newdataset:
+			self.datasetname = newdataset
+			dataset_changed = True
 		
-		datasetname = get_dataset_name_from_filepath(filepath)
+		newstate = get_state_from_path(filepath)
+	    state_hanged = False
+	    if self.state != newstate:
+		     self.state = newstate
+		     state_changed = True
+	
 		
 		self.current_headers = self.headers[datasetname]
 		
 		if filepath.startswith('e'):
-		    self.e_fh = open(filepath)
+			self.e_fh = open(filepath)
 		    
 		    #find corresponding m and g
-		    
-		    self.m_fh = open(mfilepath)
+			
+			mfilepath = get_mfilepath_from_efilepath(filepath)
+			self.m_fh = open(mfilepath)
 		
-		    #only look for / load the g file when the statename changes 
-		    if changed:
-		        #find g file
-		        self.g_fh = open(gfilepath)
+			#only look for / load the g file when the statename changes 
+			if state_changed:
+				 #find g file
+				gfilepath = get_gfilepath(filepath)
+				self.load_geo_parser(gfilepath)
+				
+			if dataset_changed:
+				hfilepath = get_header_filepath(self.header_dir, filepath)
+				self.load_headers(hfilepath)
 		        
-    def next(self):
-        
+		        
+		else:
+		    self.e_fh = None
+	
+	    
+	def next(self):
+	# Read line from a file
+	
+	    if self.e_fh:
+	        eline = self.e_fh.readline()
+	        mline = self.m_fh.readline()
+	        
+	        record = self.parse_line(eline, mline)
+
+			# modify the record
+	    
+	        return record
+	    else:
+	        raise StopIteration
 		    
 	
-
-    
-	def GeoParser(self):
+	
+	def load_geo_parser(self, gfilepath):
 		geo_dict = {}
 		cc = {
 		"LOGRECNO": [ 14, 7, ""],
@@ -278,9 +313,8 @@ class acs_iterator(govdata.core.DataIterator):
 		"GEOID": [ 179, 40, ""],
 		"NAME": [ 219, 200, ""]
 		}
-		DATAPATH = 'data/Massachusetts_Tracts_Block_Groups_Only/'
-		filename = [file for file in os.listdir(PATH + DATAPATH) if file[0] == 'g']
-		fid = open(PATH + DATAPATH + filename[0], 'rU')
+
+		fid = open(gfilepath, 'rU')
 		
 		for L in fid:
 			logrecno = L[cc['LOGRECNO'][0]-1:cc['LOGRECNO'][0]-1 + cc['LOGRECNO'][1]]
@@ -291,59 +325,50 @@ class acs_iterator(govdata.core.DataIterator):
 					geo_dict[logrecno][cc[key][2]] = L[cc[key][0]-1:cc[key][0]-1+cc[key][1]]
 			
 			
-	return geo_dict
+	self.geo_lookup = geo_dict
 	
-	def ReadData(H,G):
-	# The arguement of this function is a dictionary of column headers
+	def parse_line(eline, mline):
+		# The arguement of this function is a dictionary of column headers
 	
-	# Make a list of all files in data director
-	DATADIR = 'data/Massachusetts_Tracts_Block_Groups_Only/'
-	filelist = [file for file in os.listdir(PATH + DATADIR) if file.lower().endswith('.txt')]
-	
-	# Read in each file and get the column head for each row
-	for fname in filelist:
-		print fname
-		fid = open(PATH + DATADIR + fname, 'rU')
-		
 		# read each line, parse it, and get the column heads from the headers dict
-		for L in fid:
-			l = L.split(',')
-	
-			# make sure the first 6 columns of geo data are there
-			if len(l) <= 6:
-				print fname
-				print l
-				break
-			
-			# From the sequence number, get the column header
-			seq = l[4]
-			seq = int(seq)
-			seq = str(seq)
-			
-			if seq != '':
-				headers = H[seq]['headers']
-			
-				# check that the number of headers is the same as the number of columns in data
-				if len(l) == H[seq]['NumHeaders'] + 6:
-					1 == 1
-				else:
-					1==1
-					print('ERROR! NUMBER OF COLUMNS DOESNT MATCH NUMBER OF HEADERS!'+ '\t' + str(len(l)) + '\t' + str(H[seq]['NumHeaders']))
-					print('\n' + seq + '\t' + fname)
-			
-			# From the location record number, get the geographic data
-			locrecno = l[5]
-			
-			if locrecno !='':
-				geo = G[locrecno]
-				
-			records = l[6:]
-			
-			print geo
-			print headers
-			print records
-			
-		fid.close()
 		
+		el = eline.split(',')
+		ml = mline.split(',')
+		# make sure the first 6 columns of geo data are there
+		if len(l) <= 6:
+			print fname
+			print l
+			break
+		
+		# From the sequence number, get the column header
+		seq = l[4]
+		seq = int(seq)
+		seq = str(seq)
+		
+		if seq != '':
+			self.headers = H[seq]['headers']
+		
+			# check that the number of headers is the same as the number of columns in data
+			if len(l) == H[seq]['NumHeaders'] + 6:
+				1 == 1
+			else:
+				1==1
+				print('ERROR! NUMBER OF COLUMNS DOESNT MATCH NUMBER OF HEADERS!'+ '\t' + str(len(l)) + '\t' + str(H[seq]['NumHeaders']))
+				print('\n' + seq + '\t' + fname)
+		
+		# From the location record number, get the geographic data
+		locrecno = l[5]
+		
+		if locrecno !='':
+			geo = G[locrecno]
+			
+		records = l[6:]
+		
+		print geo
+		print headers
+		print records
+		
+		fid.close()
+	
 		
 		
