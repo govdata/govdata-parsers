@@ -20,6 +20,20 @@ def create_metadata():
     """
     metadata = {}
     metadata['dateFormat'] = 'YYYYmmdd'
+    columnGroups = {}
+    columnGroups['timeColumns'] = []
+    columnGroups['spaceColumns'] = []
+    metadata['columnGroups'] = columnGroups
+    metadata['source'] = [('agency', {'name': 'Department of Commerce', 'shortName': 'DOC'}),
+                          ('subagency', {'name': 'United Patent and Trademark Office', 'shortName': 'USPTO'}),
+                          ('dataset', {'name': 'Patent Grant Bibliographic Data', 'shortName': 'PGBD'})]
+    metadata['uniqueIndexes'] = ['Patent']
+
+    #Kind, ApplicationType, assignee.Assignee, assignee.AsgType, Title,
+    #assignee.location, class, inventor.Nationality, inventor.location,
+    #lawyer.OrgName, 'inventor.name','PatentType'
+    metadata['sliceCols'] = [[]]
+    metadata['sliceContents'] = ['Abstract']
 
     
 
@@ -68,11 +82,6 @@ class uspto_iterator(object):
 
         #coprime with patent:  citation,
         # TODO
-        # format geographic data fields
-            ## assignee: City, State, Country
-            ## inventor: Street, City, State, Zipcode, Country, Nationality
-            ## lawyer: LawCountry
-            ## usreldoc: Country
         # decode classification, kind, apptype, asgtype, usreldoc kind
         # standardize code names? ie asgtype
         # understand usreldoc, assignee residence
@@ -101,8 +110,8 @@ class uspto_iterator(object):
 
         for k in ['Cit_Date', 'Cit_Name', 'Cit_Kind', 'Cit_Country', 'CitSeq']:
             # make sure that data are ordered by CitSeq
-            for r in rec['citation']:
-                r.pop(k)
+            for r in rec.get('citation',[]):
+                r.pop(k, None)
         # make sure that data are order by their respective Seq numbers
         for r in rec.get('inventor',[]):
             r.pop('InvSeq')
@@ -112,19 +121,60 @@ class uspto_iterator(object):
             r.pop('AsgSeq')
         for r in rec.get('usreldoc', []):
             r.pop('OrderSeq')
+            r.pop('Country')
 
         for r in rec.get('assignee',[]):
             location = {}
             if r.get('State'):
-                location['s'] = r['State']
+                location['S'] = r.pop('State')
             if r.get('City'):
-                location['W'] = r['City']
-            if r.get('County'):
-                location['C'] = r['Country']
+                location['W'] = r.pop('City')
+            if r.get('Country'):
+                location['C'] = r.pop('Country')
 
             r['location'] = location
 
-            
+        for r in rec.get('inventor',[]):
+            r['name'] = {}
+            f = r.pop('Firstname',None)
+            if f:
+                r['name']['first'] = f
+            l = r.pop('Lastname',None)
+            if l:
+                r['name']['last'] = l
+
+        for r in rec.get('lawyer',[]):
+            r['name'] = {}
+            f = r.pop('Firstname',None)
+            if f:
+                r['name']['first'] = f
+            l = r.pop('Lastname',None)
+            if l:
+                r['name']['last'] = l
+                
+
+        for r in rec.get('inventor',[]):
+            location = {}
+            if r.get('Street'):
+                location['a'] = r.pop('Street')
+            if r.get('State'):
+                location['S'] = r.pop('State')
+            if r.get('City'):
+                location['W'] = r.pop('City')
+            if r.get('Country'):
+                location['C'] = r.pop('Country')
+            if r.get('Zipcode'):
+                location['p'] = r.pop('Zipcode')
+            if r.get('Nationality'):
+                if r.get('Nationality') != 'omitted':
+                    r['Nationality'] = {'C':r['Nationality']}
+                else:
+                    r.pop('Nationality')
+
+            r['location'] = location    
+
+        for r in rec.get('lawyer', []):
+            r.pop('LawCountry')
 
         for k in rec:
             if len(rec[k]) == 1:
@@ -133,6 +183,10 @@ class uspto_iterator(object):
         for k in rec['patent']:
             rec[k] = rec['patent'][k]
         rec.pop('patent')
+
+        descr = rec.pop('patdesc')
+        rec.update(descr)
+        
         rec.pop('AppYear')
         rec.pop('GYear')
         rec['AppDate'] = rec['AppDate'].replace('-','')
@@ -142,8 +196,7 @@ class uspto_iterator(object):
                      ('GrantDate', 'GDate'),
                      ('PatentType', 'PatType'),
                      ('ApplicationNumber', 'AppNum'),
-                     ('ApplicationType', 'AppType'),
-                     ('PatentDescription', 'patdesc')]
+                     ('ApplicationType', 'AppType')]
         for a,b in toReplace:
             rec[a] = rec.pop(b)
         
