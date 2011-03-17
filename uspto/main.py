@@ -74,18 +74,16 @@ class uspto_iterator(object):
          this actually returns the schema record
         """
 
-        #call the next methods as needed of the 9 cursors
-        #some will get called multiple times for each single call
-        #to the patent DB
-        #transform the data into a record that can be inserted in to MongDB
-        #return that value
 
-        #coprime with patent:  citation,
+        # NOTE: asgtype - not explained by uspto? 
+
+
         # TODO
-        # decode classification, kind, apptype, asgtype, usreldoc kind
-        # standardize code names? ie asgtype
-        # understand usreldoc, assignee residence
-        # write metadata
+        # decode
+        #    classification http://www.uspto.gov/web/patents/classification/uspc700/sched700.htm
+        #    http://www.uspto.gov/patents/resources/classification/numeric/can.jsp 
+        #    kind, apptype, asgtype, usreldoc kind - type in from paper
+         # write metadata
 
         patent = self.current_values['patent'][0]
         
