@@ -50,7 +50,7 @@ def get_subclass_pages():
     recs = []
     p = re.compile('Sub\d')
     f = lambda x : p.match(dict(x.attrs).get('class',''))
-    for x in X[:10]:
+    for x in X:
         cat = x['CLASS']
         title = x['CLASS TITLE']
         os.system('wget http://www.uspto.gov/web/patents/classification/uspc' + cat + '/sched' + cat + '.htm -O ' + cat + '.html')
