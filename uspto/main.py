@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import sqlite3
+import re
+import os
+import BeautifulSoup
+from starflow.utils import Contents
+import tabular as tb
 
 # TODO
 # decode
@@ -16,6 +21,68 @@ def download_from_dvn():
 def unzip_dvn():
     pass
     
+
+
+def get_class_pages():
+    os.system('wget http://www.uspto.gov/patents/resources/classification/numeric/can.jsp -O class_pages.html')
+    Soup = BeautifulSoup.BeautifulSoup(open('class_pages.html'))
+    P = Soup.findAll('p',align='left')
+    A = ['http://uspto.gov/' + str(dict(p.findAll('a')[0].attrs)['href']) for p in P]
+    Xlist = []
+    for (a,p) in zip(A,P):
+        filename = Contents(p).strip().replace(' ','_') + '.html'
+        os.system('wget ' + a + ' -O ' + filename)
+        CSoup = BeautifulSoup.BeautifulSoup(open(filename))
+        T = CSoup.findAll('h1','page-title')[0].findNext('table')
+        TR = T.findAll('tr')
+        headers = [Contents(t) for t in TR[0].findAll('th')]
+        rows = [[Contents(td).replace('&nbsp;','') for td in tr.findAll('td')] for tr in TR[2:]]         
+        rows = [r for r in rows if r[0]]
+        X = tb.tabarray(records = rows, names = headers)
+        Xlist.append(X)
+    Y = tb.tab_rowstack(Xlist)
+    Cat = Y[['CLASS','CLASS TITLE']].aggregate(On=['CLASS'],AggFunc=lambda x : x[0])
+    Cat.saveSV('catlevels.tsv')
+    
+
+def get_subclass_pages():
+    X = tb.tabarray(SVfile = 'catlevels.tsv')
+    recs = []
+    p = re.compile('Sub\d')
+    f = lambda x : p.match(dict(x.attrs).get('class',''))
+    for x in X[:10]:
+        cat = x['CLASS']
+        title = x['CLASS TITLE']
+        os.system('wget http://www.uspto.gov/web/patents/classification/uspc' + cat + '/sched' + cat + '.htm -O ' + cat + '.html')
+        Soup = BeautifulSoup.BeautifulSoup(open(cat + '.html'))
+        Crac = Soup.find(True,'CracHeader')
+        For = Soup.find(True,'ForHeader')
+        Dig = Soup.find(True,'DigHeader')
+        if Crac:
+            end = Crac
+        elif For:
+            end = For
+        elif Dig:
+            end = Dig
+        else:
+            end  = None
+        if end:
+            T = end.findAllPrevious('tr',valign='top')[:-1]
+        else:
+            T = Soup.findAll('tr',valign='top')[:-1]
+        T.reverse()
+        for (i,t) in enumerate(T): 
+            subclass = Contents(T[1].find(f)).strip()
+            subtitle = Contents(t.find(True,"SubTtl")).strip()
+            try:
+                indent = int(dict(t.find(True,"SubTtl").find("img").attrs)['src'].split('/')[-1].split('_')[0])
+            except AttributeError:
+                indent = 0
+            recs.append((cat,title,subclass,subtitle,indent))
+
+    Y = tb.tabarray(records = recs, names=['Class','Title','Subclass','Subtitle','Indent'])
+    Y.saveSV('classifications.tsv')
+
 
 def create_metadata():
     """
