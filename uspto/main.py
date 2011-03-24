@@ -1,4 +1,13 @@
+# -*- coding: utf-8 -*-
+
 import sqlite3
+
+# TODO
+# decode
+#    classification http://www.uspto.gov/web/patents/classification/uspc700/sched700.htm
+#    http://www.uspto.gov/patents/resources/classification/numeric/can.jsp 
+#    kind, apptype, asgtype, usreldoc kind - type in from paper
+#    write metadata
 
 def download_from_dvn():
     
@@ -35,7 +44,46 @@ def create_metadata():
     metadata['sliceCols'] = [[]]
     metadata['sliceContents'] = ['Abstract']
 
-    
+#other metadata...
+
+    kind ={
+    'A1' : "Utility Patent Grant issued prior to January 2, 2001 or Utility Patent Application published on or after January 2, 2001",
+    'A2' : "Second or subsequent publication of a Utility Patent Application",
+    'A9' : "Correction  published Utility Patent Application",
+    'Bn' : "Reexamination Certificate issued prior to January 2, 2001.'n' represents a value 1 through 9.",
+    'B1' : "Utility Patent Grant (no published application) issued on or after January 2, 2001.",
+    'B2' : "Utility Patent Grant (with a published application) issued on or after January 2, 2001",
+    'Cn' : "Reexamination Certificate issued on or after January 2, 2001.'n' Represents a value 1 through 9 denoting the publication level.",
+    'E1' : "Reissue Patent",
+    'H1' : "Statutory Invention Registration (SIR) Patent Documents. SIR documents began with the December 3, 1985 issue",
+    'I1' : "'X' Patents issued from July 31, 1790 to July 13, 1836",
+    'I2' : "'X' Reissue Patents issued from July 31, 1790 to July 4, 1836",
+    'I3' : "Additional Improvements – Patents issued issued between 1838 and 1861.",
+    'I4' : "Defensive Publication – Documents issued from Nov 5, 1968 through May 5, 1987",
+    'I5' : "Trial Voluntary Protest Program (TVPP) Patent Documents",
+    'NP' : "Non-Patent Literature",
+    'P1' : "Plant Patent Grant issued prior to January 2, 2001",
+    'P1' : "Plant Patent Application published on or after January 2, 2001",
+    'P2' : "Plant Patent Grant (no published application) issued on or after January 2, 2001",
+    'P3' : "Plant Patent Grant (with a published application) issued on or after January 2, 2001",
+    'P4' : "Second or subsequent publication of a Plant Patent Application",
+    'P9' : "Correction publication of a Plant Patent Application",
+    'S1' : "Design Patent"}
+
+    field_names={
+    'Patent':"8 character alpha numeric identification code assigned by USPTO",
+    'Assignee':"name of the owner of the patent",
+    'ApplicationDate':"week of patent application",
+    'ApplicationNum': "patent application number",
+    'Claims': "number of claims on the patent application",
+    'GrantDate': "patent grant date",
+    'Kind': "patent kind code",
+    'PatentType': "patent type - either utility or design",
+    'Title': "patent title",
+    'citation': "patents cited",
+    'class': "primary and subclassification of the patent",
+    'lawyer': "lawyers and law offices associated with the patent",
+    'usreldoc': "related patent documents"}
 
 class uspto_iterator(object):
 
@@ -76,14 +124,6 @@ class uspto_iterator(object):
 
 
         # NOTE: asgtype - not explained by uspto? 
-
-
-        # TODO
-        # decode
-        #    classification http://www.uspto.gov/web/patents/classification/uspc700/sched700.htm
-        #    http://www.uspto.gov/patents/resources/classification/numeric/can.jsp 
-        #    kind, apptype, asgtype, usreldoc kind - type in from paper
-         # write metadata
 
         patent = self.current_values['patent'][0]
         
