@@ -45,15 +45,20 @@ def get_class_pages():
     Cat.saveSV('catlevels.tsv')
     
 
+def fix_cat(cat):
+    return '0'*(3 - len(cat)) + cat.lower()
+   
 def get_subclass_pages():
     X = tb.tabarray(SVfile = 'catlevels.tsv')
     recs = []
     p = re.compile('Sub\d')
     f = lambda x : p.match(dict(x.attrs).get('class',''))
-    for x in X[:10]:
+    for x in X[-10:]:
+        subrecs = []
         cat = x['CLASS']
+        fixed_cat = fix_cat(cat)
         title = x['CLASS TITLE']
-        os.system('wget http://www.uspto.gov/web/patents/classification/uspc' + cat + '/sched' + cat + '.htm -O ' + cat + '.html')
+        os.system('wget http://www.uspto.gov/web/patents/classification/uspc' + fixed_cat + '/sched' + fixed_cat + '.htm -O ' + cat + '.html')
         Soup = BeautifulSoup.BeautifulSoup(open(cat + '.html'))
         Crac = Soup.find(True,'CracHeader')
         For = Soup.find(True,'ForHeader')
@@ -67,18 +72,29 @@ def get_subclass_pages():
         else:
             end  = None
         if end:
-            T = end.findAllPrevious('tr',valign='top')[:-1]
+            T = end.findAllPrevious('tr',valign='top')[:]
         else:
-            T = Soup.findAll('tr',valign='top')[:-1]
+            T = Soup.findAll('tr',valign='top')[:]
         T.reverse()
         for (i,t) in enumerate(T): 
-            subclass = Contents(T[1].find(f)).strip()
-            subtitle = Contents(t.find(True,"SubTtl")).strip()
             try:
-                indent = int(dict(t.find(True,"SubTtl").find("img").attrs)['src'].split('/')[-1].split('_')[0])
-            except AttributeError:
-                indent = 0
-            recs.append((cat,title,subclass,subtitle,indent))
+                subclass = Contents(t.find(f)).strip()
+            except:
+                pass
+            else:
+                try:
+                    subtitle = Contents(t.find(True,"SubTtl")).strip()
+                except:
+                    pass
+                else:
+                    try:
+                        indent = int(dict(t.find(True,"SubTtl").find("img").attrs)['src'].split('/')[-1].split('_')[0])
+                    except AttributeError:
+                        indent = 0
+                    #print (cat,title,subclass,subtitle,indent)    
+                    subrecs.append((cat,title,subclass,subtitle,indent))
+        subrecs.reverse()
+        recs.extend(subrecs)
 
     Y = tb.tabarray(records = recs, names=['Class','Title','Subclass','Subtitle','Indent'])
     Y.saveSV('classifications.tsv')
