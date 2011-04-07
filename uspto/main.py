@@ -50,7 +50,7 @@ def get_subclass_pages():
     recs = []
     p = re.compile('Sub\d')
     f = lambda x : p.match(dict(x.attrs).get('class',''))
-    for x in X:
+    for x in X[:10]:
         cat = x['CLASS']
         title = x['CLASS TITLE']
         os.system('wget http://www.uspto.gov/web/patents/classification/uspc' + cat + '/sched' + cat + '.htm -O ' + cat + '.html')
@@ -111,7 +111,7 @@ def create_metadata():
     metadata['sliceCols'] = [[]]
     metadata['sliceContents'] = ['Abstract']
 
-#other metadata...
+    #other metadata...
 
     kind ={
     'A1' : "Utility Patent Grant issued prior to January 2, 2001 or Utility Patent Application published on or after January 2, 2001",
@@ -152,6 +152,31 @@ def create_metadata():
     'lawyer': "lawyers and law offices associated with the patent",
     'usreldoc': "related patent documents"}
 
+    util_app_types={
+        2: "Filed prior to January 1, 1948",
+        3: "Filed January 1, 1948 through December 31, 1959",
+        4: "Filed January 1, 1960 through December 31, 1969",
+        5: "Filed January 1, 1970 through December 31, 1978",
+        6: "Filed January 1, 1979 through December 31, 1986",
+        7: "Filed January 1, 1987 through January 21, 1993",
+        8: "Filed January 22, 1993 through January 20, 1998",
+        9: "Filed January 21, 1998 through October 23, 2001",
+        10: "Filed October 24, 2001 through November 30, 2004",
+        11: "Filed December 1, 2004 through December 5, 2007",
+        12: "Filed December 6, 2007 through Current"}
+    design_app_types={
+        7: "Filed prior to October 1, 1992",
+        29: "Filed after October 1, 1992"}
+
+
+
+    metadata['kind']= kind
+    metadata['field_names']=field_names
+    metadata['util_app_types']= util_app_types
+    metadata['design_app_types']= design_app_types
+
+    return metadata
+
 class uspto_iterator(object):
 
     def __init__(self):
@@ -179,7 +204,7 @@ class uspto_iterator(object):
             print self.current_values[dbname].keys() #returns a tuple of column names
          
             
-        #self.metadata = create_metadata()
+        self.metadata = create_metadata()
         
         pass
 
@@ -288,6 +313,7 @@ class uspto_iterator(object):
         for k in rec['patent']:
             rec[k] = rec['patent'][k]
         rec.pop('patent')
+        rec['Kind']=self.metadata['kind'][rec['Kind']]
 
         descr = rec.pop('patdesc')
         rec.update(descr)
@@ -296,7 +322,11 @@ class uspto_iterator(object):
         rec.pop('GYear')
         rec['AppDate'] = rec['AppDate'].replace('-','')
         rec['GDate'] = rec['GDate'].replace('-','')
-
+        if rec['PatType']=='utility':
+            rec['AppType'] = self.metadata['util_app_types'][rec['AppType']]
+        elif rec['PatType']=='design':
+            rec['AppType'] = self.metadata['design_app_types'][rec['AppType']]
+        
         toReplace = [('ApplicationDate', 'AppDate'),
                      ('GrantDate', 'GDate'),
                      ('PatentType', 'PatType'),
