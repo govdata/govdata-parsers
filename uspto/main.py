@@ -126,32 +126,33 @@ def create_metadata():
     #lawyer.OrgName, 'inventor.name','PatentType'
     metadata['sliceCols'] = [[]]
     metadata['sliceContents'] = ['Abstract']
+    metadata['Categories'] = tb.tabarray(SVfile='Classifications.tsv')
 
     #other metadata...
 
     kind ={
-    'A1' : "Utility Patent Grant issued prior to January 2, 2001 or Utility Patent Application published on or after January 2, 2001",
-    'A2' : "Second or subsequent publication of a Utility Patent Application",
-    'A9' : "Correction  published Utility Patent Application",
-    'Bn' : "Reexamination Certificate issued prior to January 2, 2001.'n' represents a value 1 through 9.",
-    'B1' : "Utility Patent Grant (no published application) issued on or after January 2, 2001.",
-    'B2' : "Utility Patent Grant (with a published application) issued on or after January 2, 2001",
-    'Cn' : "Reexamination Certificate issued on or after January 2, 2001.'n' Represents a value 1 through 9 denoting the publication level.",
-    'E1' : "Reissue Patent",
-    'H1' : "Statutory Invention Registration (SIR) Patent Documents. SIR documents began with the December 3, 1985 issue",
-    'I1' : "'X' Patents issued from July 31, 1790 to July 13, 1836",
-    'I2' : "'X' Reissue Patents issued from July 31, 1790 to July 4, 1836",
-    'I3' : "Additional Improvements – Patents issued issued between 1838 and 1861.",
-    'I4' : "Defensive Publication – Documents issued from Nov 5, 1968 through May 5, 1987",
-    'I5' : "Trial Voluntary Protest Program (TVPP) Patent Documents",
-    'NP' : "Non-Patent Literature",
-    'P1' : "Plant Patent Grant issued prior to January 2, 2001",
-    'P1' : "Plant Patent Application published on or after January 2, 2001",
-    'P2' : "Plant Patent Grant (no published application) issued on or after January 2, 2001",
-    'P3' : "Plant Patent Grant (with a published application) issued on or after January 2, 2001",
-    'P4' : "Second or subsequent publication of a Plant Patent Application",
-    'P9' : "Correction publication of a Plant Patent Application",
-    'S1' : "Design Patent"}
+    'A1' : ("Utility Patent Grant issued prior to January 2, 2001 or Utility Patent Application published on or after January 2, 2001","Utility"),
+    'A2' : ("Second or subsequent publication of a Utility Patent Application","Utility"),
+    'A9' : ("Correction  published Utility Patent Application","Utility Correction"),
+    'Bn' : ("Reexamination Certificate issued prior to January 2, 2001.'n' represents a value 1 through 9.", "Reexamination Certificate"),
+    'B1' : ("Utility Patent Grant (no published application) issued on or after January 2, 2001.", "Utility"),
+    'B2' : ("Utility Patent Grant (with a published application) issued on or after January 2, 2001", "Utility"),
+    'Cn' : ("Reexamination Certificate issued on or after January 2, 2001.'n' Represents a value 1 through 9 denoting the publication level.", "Reexamination Certificate"),
+    'E1' : ("Reissue Patent","Reissue"),
+    'H1' : ("Statutory Invention Registration (SIR) Patent Documents. SIR documents began with the December 3, 1985 issue", "Statutory Invention Registration (SIR)"),
+    'I1' : ("'X' Patents issued from July 31, 1790 to July 13, 1836", "X"),
+    'I2' : ("'X' Reissue Patents issued from July 31, 1790 to July 4, 1836", "X Reissue"),
+    'I3' : ("Additional Improvements – Patents issued issued between 1838 and 1861.", "Improvement"),
+    'I4' : ("Defensive Publication – Documents issued from Nov 5, 1968 through May 5, 1987", "Defensive"),
+    'I5' : ("Trial Voluntary Protest Program (TVPP) Patent Documents", "Trial Voluntary Protest Program (TVPP)"),
+    'NP' : ("Non-Patent Literature", "Non-Patent Literature"),
+    'P1' : ("Plant Patent Grant issued prior to January 2, 2001", "Plant"),
+    'P1' : ("Plant Patent Application published on or after January 2, 2001", "Plant"),
+    'P2' : ("Plant Patent Grant (no published application) issued on or after January 2, 2001", "Plant"),
+    'P3' : ("Plant Patent Grant (with a published application) issued on or after January 2, 2001", "Plant"),
+    'P4' : ("Second or subsequent publication of a Plant Patent Application", "Plant Subsequent"),
+    'P9' : ("Correction publication of a Plant Patent Application", "Plant Correction"),
+    'S1' : ("Design Patent", "Design")}
 
     field_names={
     'Patent':"8 character alpha numeric identification code assigned by USPTO",
@@ -329,7 +330,7 @@ class uspto_iterator(object):
         for k in rec['patent']:
             rec[k] = rec['patent'][k]
         rec.pop('patent')
-        rec['Kind']=self.metadata['kind'][rec['Kind']]
+        rec['Kind']=self.metadata['kind'][rec['Kind']][1]
 
         descr = rec.pop('patdesc')
         rec.update(descr)
@@ -338,10 +339,6 @@ class uspto_iterator(object):
         rec.pop('GYear')
         rec['AppDate'] = rec['AppDate'].replace('-','')
         rec['GDate'] = rec['GDate'].replace('-','')
-        if rec['PatType']=='utility':
-            rec['AppType'] = self.metadata['util_app_types'][rec['AppType']]
-        elif rec['PatType']=='design':
-            rec['AppType'] = self.metadata['design_app_types'][rec['AppType']]
         
         toReplace = [('ApplicationDate', 'AppDate'),
                      ('GrantDate', 'GDate'),
@@ -350,7 +347,19 @@ class uspto_iterator(object):
                      ('ApplicationType', 'AppType')]
         for a,b in toReplace:
             rec[a] = rec.pop(b)
+
+        # decode class
         
+        """
+        X = self.metadata['classifications']
+        rec['classValue'] = []
+        for c in rec['class']:
+            if c['Prim'] == 1:
+                (cl,tit,scl,stit,ind) = X[(X['Class'] == c['Class']) & (X['Subclass'] == c['SubClass'])][0]
+                #work back to get all the records above this one with lower ind stopping at the most recent previous with ind = 0
+                #combine values
+                
+        """
         
         return rec
    
