@@ -126,7 +126,7 @@ def create_metadata():
     #lawyer.OrgName, 'inventor.name','PatentType'
     metadata['sliceCols'] = [[]]
     metadata['sliceContents'] = ['Abstract']
-    metadata['Categories'] = tb.tabarray(SVfile='Classifications.tsv')
+    metadata['Categories'] = tb.tabarray(SVfile='classifications.tsv')
 
     #other metadata...
 
