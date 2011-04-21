@@ -54,7 +54,7 @@ def get_subclass_pages():
     recs = []
     p = re.compile('Sub\d')
     f = lambda x : p.match(dict(x.attrs).get('class',''))
-    for x in X[-10:]:
+    for x in X[78:81]:
         subrecs = []
         cat = x['CLASS']
         fixed_cat = fix_cat(cat)
@@ -107,14 +107,17 @@ def process_classifications():
     curval = []
     for x in X:
         if x['Indent']+1 > len(curval):
-            curval = curval + [x['Subtitle']]
+            curval = curval + [str(x['Subtitle'])]
         elif x['Indent']+1 == len(curval):
             curval[-1] = x['Subtitle']
         else:
-            curval = curval[:x['Indent']] + [x['Subtitle']]
+            curval = curval[:x['Indent']] + [str(x['Subtitle'])]
     
-        cdict[(x['Class'],x['Subclass'])] = (x['Title'],curval[:])
+        #cdict[(str(x['Class']),str(x['Subclass']))] = (str(x['Title']),curval[:])
+        #this is where we remove '.' from the subclass number.   bad .... 
+        cdict[(str(x['Class']),str(x['Subclass']).replace('.',''))] = (str(x['Title']),curval[:])
 
+    
     F = open('classification_dict.pickle','w')
     cPickle.dump(cdict,F)
     F.close()
@@ -145,7 +148,7 @@ def create_metadata():
     #lawyer.OrgName, 'inventor.name','PatentType'
     metadata['sliceCols'] = [[]]
     metadata['sliceContents'] = ['Abstract']
-    metadata['Categories'] = tb.tabarray(SVfile='classifications.tsv')
+    metadata['Classifications'] = cPickle.loads(open("classification_dict.pickle").read())
 
     #other metadata...
 
@@ -369,16 +372,17 @@ class uspto_iterator(object):
 
         # decode class
         
-        """
-        X = self.metadata['classifications']
+        
+        class_dict = self.metadata['Classifications']
         rec['classValue'] = []
+        if isinstance(rec['class'],dict):
+            rec['class'] = [rec['class']]
         for c in rec['class']:
             if c['Prim'] == 1:
-                (cl,tit,scl,stit,ind) = X[(X['Class'] == c['Class']) & (X['Subclass'] == c['SubClass'])][0]
-                #work back to get all the records above this one with lower ind stopping at the most recent previous with ind = 0
-                #combine values
-                
-        """
+                rec['classValue'].append(class_dict[(c['Class'],c['SubClass'])])
+
+               
+    
         
         return rec
    
