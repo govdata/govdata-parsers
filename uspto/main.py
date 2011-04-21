@@ -54,7 +54,7 @@ def get_subclass_pages():
     recs = []
     p = re.compile('Sub\d')
     f = lambda x : p.match(dict(x.attrs).get('class',''))
-    for x in X[78:81]:
+    for x in X[:]:
         subrecs = []
         cat = x['CLASS']
         fixed_cat = fix_cat(cat)
