@@ -6,6 +6,7 @@ import os
 import BeautifulSoup
 from starflow.utils import Contents
 import tabular as tb
+import cPickle
 
 # TODO
 # decode
@@ -78,7 +79,7 @@ def get_subclass_pages():
         T.reverse()
         for (i,t) in enumerate(T): 
             try:
-                subclass = Contents(t.find(f)).strip()
+                subclass = str(Contents(t.find(f)).replace('&nbsp;','').strip())
             except:
                 pass
             else:
@@ -96,10 +97,28 @@ def get_subclass_pages():
         subrecs.reverse()
         recs.extend(subrecs)
 
-    Y = tb.tabarray(records = recs, names=['Class','Title','Subclass','Subtitle','Indent'])
-    Y.saveSV('classifications.tsv')
+    Y = tb.tabarray(records = recs, names=['Class','Title','Subclass','Subtitle','Indent'],formats=['str','str','str','str','int'])
+    Y.saveSV('classifications.tsv',metadata=True)
 
 
+def process_classifications():
+    X = tb.tabarray(SVfile = 'classifications.tsv')
+    cdict = {}
+    curval = []
+    for x in X:
+        if x['Indent']+1 > len(curval):
+            curval = curval + [x['Subtitle']]
+        elif x['Indent']+1 == len(curval):
+            curval[-1] = x['Subtitle']
+        else:
+            curval = curval[:x['Indent']] + [x['Subtitle']]
+    
+        cdict[(x['Class'],x['Subclass'])] = (x['Title'],curval[:])
+
+    F = open('classification_dict.pickle','w')
+    cPickle.dump(cdict,F)
+    F.close()
+    
 def create_metadata():
     """
       the metadata
